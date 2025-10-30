@@ -42,7 +42,7 @@ It streamlines your fulfillment flow from **CSV → label → PDF**, complete wi
 ## ⚙️ Configuration
 
 Settings persist to `config.json` automatically.  
-To edit defaults manually, open the app and go to the **Settings** tab.
+They can be edited in the **Settings** tab.
 
 ### Configuration fields
 
@@ -60,17 +60,15 @@ To edit defaults manually, open the app and go to the **Settings** tab.
 2. **Load CSV:** Import your marketplace export.  
 3. **Preview Orders:** Verify address, weight, and service.  
 4. **Edit Rows:** Double-click any line to modify dimensions, weight, or machinability.  
-5. **Save as Batch CSV:** Exports an EasyPost-ready batch file.  
-6. **Buy Labels & Build PDF:** Purchases all labels and merges them into a printable 4×6 PDF.
+5. **Buy Labels & Build PDF:** Purchases all labels and merges them into a printable 4×6 PDF.
 
 ---
 
 ## 🧰 Advanced Notes
 
+- **Save as Batch CSV:** Exports an EasyPost-ready batch file that you can use to purchase from the web portal instead of through this app.  
 - **Letter Rules:** Automatically applied to non-package rows; overridden by manual edits.  
 - **Package Rows:** Require L/W/H + Weight before purchase.  
-- **Sorting:** Manapool CSVs are automatically sorted by `seller_label_number`.  
-- **Cache:** Downloaded labels are cached locally for faster rebuilds.  
 - **Error Handling:** Invalid addresses or rates will be logged in the console with detailed EasyPost responses.
 
 ---
