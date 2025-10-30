@@ -356,7 +356,6 @@ class CSVConverterApp:
             val = vKey.get().strip()
             if val:
                 set_saved_api_key(val)
-                messagebox.showinfo("EasyPost", "API key saved securely to your system keychain.")
             else:
                 delete_saved_api_key()
                 messagebox.showinfo("EasyPost", "API key cleared from keychain.")
