@@ -7,9 +7,9 @@ from tkinter import ttk, filedialog, messagebox
 from datetime import datetime
 import subprocess
 import platform
+import keyring
 
 import requests
-from dotenv import load_dotenv
 from PIL import Image
 from PyPDF2 import PdfMerger
 from easypost import EasyPostClient
@@ -20,45 +20,69 @@ TARGET_HEIGHT_IN = 6.0
 TARGET_DPI = 300
 CACHE_DIR = "label_cache"
 
-# ---------------- API KEY ----------------
-def load_api_key():
-    load_dotenv()
-    return os.getenv("EASYPOST_API_KEY", "").strip()
+KEYRING_SERVICE = "TCG ShipAbility"
+KEYRING_ACCOUNT = "easypost"
 
-def save_api_key(new_key):
-    lines = []
-    if os.path.exists(".env"):
-        with open(".env", "r", encoding="utf-8") as f:
-            lines = f.read().splitlines()
-    for i, line in enumerate(lines):
-        if line.startswith("EASYPOST_API_KEY="):
-            lines[i] = f"EASYPOST_API_KEY={new_key}"
-            break
-    else:
-        lines.append(f"EASYPOST_API_KEY={new_key}")
-    with open(".env", "w", encoding="utf-8") as f:
-        f.write("\n".join(lines))
+def get_saved_api_key():
+    val = keyring.get_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
+    return (val or "").strip()
+
+def set_saved_api_key(value: str):
+    keyring.set_password(KEYRING_SERVICE, KEYRING_ACCOUNT, value.strip())
+
+def delete_saved_api_key():
+    try:
+        keyring.delete_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
+    except Exception:
+        pass
 
 def ensure_api_key_or_prompt(root):
-    key = load_api_key()
+    key = get_saved_api_key()
     if key:
         return key
-    dlg = tk.Toplevel(root); dlg.title("Enter EasyPost API Key"); dlg.grab_set()
+
+    dlg = tk.Toplevel(root)
+    dlg.title("Enter EasyPost API Key")
+    dlg.transient(root)
+    dlg.grab_set()
+
+    # center on screen
+    dlg.update_idletasks()
+    w = dlg.winfo_width(); h = dlg.winfo_height()
+    sw = dlg.winfo_screenwidth(); sh = dlg.winfo_screenheight()
+    dlg.geometry(f"+{(sw // 2 - w // 2)}+{(sh // 2 - h // 2)}")
+
     ttk.Label(dlg, text="EasyPost API Key:").grid(row=0, column=0, padx=10, pady=10, sticky="e")
-    var = tk.StringVar()
-    ent = ttk.Entry(dlg, textvariable=var, width=60, show="*"); ent.grid(row=0, column=1, padx=10, pady=10); ent.focus_set()
+    v_key = tk.StringVar(value="")
+    ent = ttk.Entry(dlg, textvariable=v_key, width=60, show="*")
+    ent.grid(row=0, column=1, padx=10, pady=10)
+    ent.focus_set()
+
+    v_show = tk.BooleanVar(value=False)
+    def toggle_show():
+        ent.configure(show="" if v_show.get() else "*")
+    ttk.Checkbutton(dlg, text="Show", variable=v_show, command=toggle_show)\
+        .grid(row=1, column=1, sticky="w", padx=10)
+
     result = {"ok": False}
     def on_ok():
-        v = var.get().strip()
-        if not v:
-            messagebox.showerror("Missing", "Please enter an API key."); return
-        save_api_key(v); result["ok"] = True; dlg.destroy()
-    def on_cancel(): dlg.destroy()
-    bf = ttk.Frame(dlg); bf.grid(row=1, column=0, columnspan=2, pady=10)
+        val = v_key.get().strip()
+        if not val:
+            messagebox.showerror("Missing", "Please enter an API key.")
+            return
+        set_saved_api_key(val)
+        result["ok"] = True
+        dlg.destroy()
+    def on_cancel():
+        dlg.destroy()
+
+    bf = ttk.Frame(dlg)
+    bf.grid(row=2, column=0, columnspan=2, pady=10)
     ttk.Button(bf, text="Save", command=on_ok).grid(row=0, column=0, padx=5)
     ttk.Button(bf, text="Cancel", command=on_cancel).grid(row=0, column=1, padx=5)
     dlg.wait_window()
-    return load_api_key() if result["ok"] else ""
+
+    return get_saved_api_key() if result["ok"] else ""
 
 # ---------------- UTILS ----------------
 def parse_ids(text): return [line.strip() for line in text.splitlines() if line.strip()]

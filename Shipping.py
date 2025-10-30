@@ -4,10 +4,13 @@ import pandas as pd
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from tkinter import ttk
-from fetch_lables import build_pdf_from_shipments_multipage
+from fetch_lables import build_pdf_from_shipments_multipage, open_pdf
 from easypost import EasyPostClient
 import traceback
+import keyring
 
+KEYRING_SERVICE = "TCG ShipAbility"
+KEYRING_ACCOUNT = "easypost"
 CONFIG_FILENAME = "config.json"
 OLD_CONFIG_FILENAME = "shipping_config.json" 
 
@@ -42,10 +45,22 @@ DEFAULT_CONFIG = {
     # Package detection
     "detection": {
         "manapool_shipping_equals_package": [0, 4.99, 9.99]
-    },
+    }
     
-    "easypost_api_key": "",
 }
+
+def get_saved_api_key():
+    val = keyring.get_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
+    return (val or "").strip()
+
+def set_saved_api_key(value: str):
+    keyring.set_password(KEYRING_SERVICE, KEYRING_ACCOUNT, value.strip())
+
+def delete_saved_api_key():
+    try:
+        keyring.delete_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
+    except Exception:
+        pass
 
 def get_here_path(name):
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), name)
@@ -317,22 +332,20 @@ class CSVConverterApp:
         dlg.title("Set EasyPost API Key")
         dlg.transient(self.root); dlg.grab_set()
 
-        # center the dialog
+        # Center on screen
         dlg.update_idletasks()
         w = dlg.winfo_width(); h = dlg.winfo_height()
         sw = dlg.winfo_screenwidth(); sh = dlg.winfo_screenheight()
         x = (sw // 2) - (w // 2); y = (sh // 2) - (h // 2)
         dlg.geometry(f"+{x}+{y}")
 
-        # current value (don’t mask in memory; just mask the entry)
-        current = (self.config or {}).get("easypost_api_key", "")
+        current = get_saved_api_key()
 
         tk.Label(dlg, text="API Key").grid(row=0, column=0, sticky="e", padx=6, pady=6)
         vKey = tk.StringVar(value=current)
         e = ttk.Entry(dlg, textvariable=vKey, width=48, show="*")
         e.grid(row=0, column=1, sticky="w", padx=(0,6))
 
-        # show/hide checkbox
         vShow = tk.BooleanVar(value=False)
         def toggle_show():
             e.configure(show="" if vShow.get() else "*")
@@ -340,9 +353,13 @@ class CSVConverterApp:
             .grid(row=1, column=1, sticky="w", padx=(0,6))
 
         def on_ok():
-            self.config["easypost_api_key"] = vKey.get().strip()
-            if save_config(self.config):
-                messagebox.showinfo("EasyPost", "API key saved.")
+            val = vKey.get().strip()
+            if val:
+                set_saved_api_key(val)
+                messagebox.showinfo("EasyPost", "API key saved securely to your system keychain.")
+            else:
+                delete_saved_api_key()
+                messagebox.showinfo("EasyPost", "API key cleared from keychain.")
             dlg.destroy()
 
         ttk.Button(dlg, text="OK", command=on_ok).grid(row=2, column=0, padx=6, pady=10)
@@ -1098,7 +1115,7 @@ class CSVConverterApp:
             print("User canceled Save As dialog; aborting buy.")
             return
 
-        key = (self.config or {}).get("easypost_api_key")
+        key = get_saved_api_key()
         if not key:
             messagebox.showerror("Missing API Key", "Cannot continue without an EasyPost API key.")
             print("Missing EasyPost API key; aborting buy.")
@@ -1250,7 +1267,8 @@ class CSVConverterApp:
             print("\n=== FETCH & MERGE LABELS INTO PDF ===")
             print(f"Shipment IDs to fetch: {bought_ids}")
             build_pdf_from_shipments_multipage(client, key, bought_ids, pdf_path, _status_cb)
-
+            open_pdf(pdf_path)
+            
             if errors:
                 msg = f"Saved PDF to:\n{pdf_path}\n\nSome rows failed:\n"
                 for i, (ridx, emsg) in enumerate(errors[:10]):
@@ -1261,7 +1279,7 @@ class CSVConverterApp:
                 messagebox.showwarning("Completed with Errors", msg)
             else:
                 print("\nSuccess. PDF saved.")
-                messagebox.showinfo("Success", f"Saved PDF to:\n{pdf_path}")
+                
 
         finally:
             # always restore cursor
