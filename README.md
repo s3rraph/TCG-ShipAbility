@@ -18,6 +18,9 @@ It streamlines your fulfillment flow from **CSV → label → PDF**, complete wi
 
 ---
 
+![Convert](https://github.com/user-attachments/assets/b527366b-d41f-42dd-bcda-68ae52c5b54d) ![Settings](https://github.com/user-attachments/assets/40fa02cc-94f7-42e8-a4fc-d69651db13af)
+![Preview](https://github.com/user-attachments/assets/5f6fbef5-9d19-430a-b7f2-f4825baf4436)
+
 ## 🧩 Installation
 
 1. **Clone the repo**
