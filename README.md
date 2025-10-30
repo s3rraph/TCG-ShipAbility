@@ -85,4 +85,4 @@ They can be edited in the **Settings** tab.
 
 ## 🏷️ License
 
-MIT License © 2025 TCG Playability / Jeremy Carrillo
+MIT License © 2025 TCG Playability / S3rraph / Jeremy Carrillo
