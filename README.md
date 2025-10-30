@@ -1,6 +1,6 @@
 # 🧾 TCG ShipAbility
 
-**TCG ShipAbility** is an all-in-one desktop utility for TCG sellers that converts exported order CSVs from marketplaces like **TCGplayer**, **Manapool**, and others into fully purchasable **EasyPost shipping labels**.
+**TCG ShipAbility** is an all-in-one desktop utility for TCG sellers that converts exported order CSVs from marketplaces like **TCGplayer**, **Manapool** into purchased  **EasyPost shipping labels**.
 
 It streamlines your fulfillment flow from **CSV → label → PDF**, complete with rules for weight, machinability, and package type detection.
 
@@ -9,13 +9,12 @@ It streamlines your fulfillment flow from **CSV → label → PDF**, complete wi
 ## 🚀 Key Features
 
 - **CSV Ingestion:** Automatically detects and normalizes exports from multiple TCG marketplaces.  
-- **Smart Detection:** Automatically identifies letters vs packages based on item count or shipping cost.  
+- **Smart Detection:** Automatically identifies letters vs packages.  
 - **Configurable Rules:** Define per-item weight thresholds, machinable status, and default services.  
 - **EasyPost Integration:** Buy and merge EasyPost labels directly into a single printable PDF.  
 - **Manual Overrides:** Edit both package and letter rows directly from the preview table.  
 - **Batch Processing:** Purchase and generate dozens of labels in one click.  
-- **Persistent Settings:** All settings and your EasyPost API Key are saved to `config.json`.  
-- **Multi-Platform Ready:** Extensible architecture for adding new marketplaces (Shopify, CardTrader, etc.).
+- **Persistent Settings:** All settings are saved to `config.json`.  
 
 ---
 
@@ -34,7 +33,7 @@ It streamlines your fulfillment flow from **CSV → label → PDF**, complete wi
 
 3. **Run the app**
    ```bash
-   python tcgp_to_easypost.py
+   python Shipping.py
    ```
    *(The app window will open automatically.)*
 
@@ -49,11 +48,9 @@ To edit defaults manually, open the app and go to the **Settings** tab.
 
 | Section | Description |
 |----------|--------------|
-| **Defaults** | Default carrier, service, label format, and country. |
 | **From Address** | Your sender information (used for every label). |
 | **Rules** | Determines letter weight / machinability by item count. |
-| **Detection** | Defines which shipping price values indicate a package. |
-| **EasyPost API Key** | Stored securely in the config; editable from Settings → “Set API Key …”. |
+| **EasyPost API Key** | Stored in the config; editable from Settings → “Set API Key …”. |
 
 ---
 
@@ -87,43 +84,7 @@ To edit defaults manually, open the app and go to the **Settings** tab.
 5. Click **Buy Labels & Build PDF** → select output path.  
 6. Print your merged label PDF and ship.
 
----
 
-## 🔐 EasyPost Integration
-
-- API key stored in `config.json` under `"easypost_api_key"`.  
-- You can set/update it via **Settings → Set API Key …**.  
-- Uses official [`easypost`](https://pypi.org/project/easypost/) Python SDK.
-
----
-
-## 🛠️ Extending for New Marketplaces
-
-To add a new CSV type:
-1. Define a new header signature in `detect_format_from_headers()`.  
-2. Add a format branch in `load_csv()` to map columns to `self.data`.  
-3. Call `apply_rules_and_package_logic()` for rule application.  
-4. Preview and label generation will work automatically.
-
----
-
-## 📦 Tech Stack
-
-- **Python 3.9+**  
-- **Tkinter GUI**  
-- **Pandas** for CSV parsing  
-- **EasyPost SDK** for label creation  
-- **ReportLab / Pillow** for PDF composition  
-
----
-
-## 🧑‍💻 Development Notes
-
-- All persistent UI states are stored in `config.json`.  
-- Logs print to stdout for debugging during label purchase.  
-- Exception traces are safe to view — no private data dumped by default.  
-
----
 
 ## 🏷️ License
 
