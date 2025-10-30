@@ -1,0 +1,6 @@
+easypost
+pandas
+Pillow
+PyPDF2
+python-dotenv
+Requests
