@@ -218,27 +218,8 @@ class CSVConverterApp:
         # guard to avoid saving during initial UI construction
         self._loading_settings = True
 
-        # Defaults
-        lf_def = ttk.LabelFrame(outer, text="Defaults")
-        lf_def.grid(row=0, column=0, sticky="nsew", padx=(0,10), pady=(0,10))
-        d = self.config["defaults"]
-        self.var_carrier = tk.StringVar(value=d.get("carrier","USPS"))
-        self.var_service = tk.StringVar(value=d.get("service","First"))
-        self.var_label_format = tk.StringVar(value=d.get("label_format","PNG"))
-        self.var_country_default = tk.StringVar(value=d.get("country","US"))
-        for i,(lab,var,w) in enumerate([
-            ("Carrier", self.var_carrier, 22),
-            ("Service (letters default)", self.var_service, 22),
-            ("Label Format", self.var_label_format, 22),
-            ("Default Country", self.var_country_default, 10),
-        ]):
-            ttk.Label(lf_def, text=lab).grid(row=i, column=0, sticky="e", padx=4, pady=3)
-            e = ttk.Entry(lf_def, textvariable=var, width=w)
-            e.grid(row=i, column=1, sticky="w")
-
-        # From Address
         lf_from = ttk.LabelFrame(outer, text="From Address")
-        lf_from.grid(row=0, column=1, sticky="nsew", pady=(0,10))
+        lf_from.grid(row=0, column=0, columnspan=2, sticky="nsew", pady=(0,10))
         fa = self.config["from_address"]
         fields = [
             ("Name","name"),("Company","company"),("Phone","phone"),("Email","email"),
@@ -253,7 +234,7 @@ class CSVConverterApp:
             self.from_vars[key] = var
 
         # Rules (letters-only)
-        lf_rules = ttk.LabelFrame(outer, text="Rules (applied to LETTERS only) — auto-saves")
+        lf_rules = ttk.LabelFrame(outer, text="Rules (applied to LETTERS only)")
         lf_rules.grid(row=1, column=0, columnspan=2, sticky="nsew")
         lf_rules.grid_columnconfigure(0, weight=1)
         lf_rules.grid_rowconfigure(1, weight=1)
@@ -287,16 +268,7 @@ class CSVConverterApp:
         ttk.Button(btns, text="Edit Selected", command=self._edit_selected_rule_dialog).pack(side="left", padx=(0,6))
         ttk.Button(btns, text="Delete Selected", command=self._delete_selected_rule).pack(side="left", padx=(0,6))
         ttk.Button(btns, text="Move Up", command=lambda: self._move_rule(-1)).pack(side="left", padx=(0,6))
-        ttk.Button(btns, text="Move Down", command=lambda: self._move_rule(1)).pack(side="left", padx=(0,6))
-
-        # Detection settings
-        lf_det = ttk.LabelFrame(outer, text="Detection (packages) — auto-saves")
-        lf_det.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(10,10))
-        det = self.config.get("detection", {})
-        self.var_det_mp_ship = tk.StringVar(value=", ".join(str(x) for x in det.get("manapool_shipping_equals_package", [0, 4.99, 9.99])))
-        ttk.Label(lf_det, text="Manapool: package if shipping equals").grid(row=0, column=0, sticky="e", padx=4, pady=3)
-        ttk.Entry(lf_det, textvariable=self.var_det_mp_ship, width=24).grid(row=0, column=1, sticky="w")
-        
+        ttk.Button(btns, text="Move Down", command=lambda: self._move_rule(1)).pack(side="left", padx=(0,6))        
         
         lf_key = ttk.LabelFrame(outer, text="EasyPost")
         lf_key.grid(row=3, column=0, columnspan=2, sticky="w", pady=(0,10), padx=(0,0))
@@ -304,9 +276,8 @@ class CSVConverterApp:
         ttk.Button(lf_key, text="Set API Key…", command=self._set_api_key_dialog).grid(row=0, column=0, padx=6, pady=6)
 
 
-        # AUTOSAVE: trace variables
-        watch_vars = [self.var_carrier, self.var_service, self.var_label_format, self.var_country_default,
-                      self.var_det_mp_ship] + list(self.from_vars.values())
+        watch_vars = list(self.from_vars.values())
+        
         for v in watch_vars:
             v.trace_add("write", self._autosave_settings)
 
@@ -332,20 +303,8 @@ class CSVConverterApp:
                 pass
         return out or []
 
-    def _update_config_from_vars(self):
-        # defaults
-        self.config["defaults"] = {
-            "carrier": self.var_carrier.get().strip(),
-            "service": self.var_service.get().strip(),  # letters default
-            "label_format": self.var_label_format.get().strip(),
-            "country": self.var_country_default.get().strip() or "US",
-        }
-        # from address
-        self.config["from_address"] = {k: v.get().strip() for k, v in self.from_vars.items()}
-        # detection
-        self.config["detection"] = {
-            "manapool_shipping_equals_package": self._parse_numbers(self.var_det_mp_ship.get()),
-        }
+    def _update_config_from_vars(self):        
+        self.config["from_address"] = {k: v.get().strip() for k, v in self.from_vars.items()}        
 
     def _autosave_settings(self, *args):
         if getattr(self, "_loading_settings", False):
