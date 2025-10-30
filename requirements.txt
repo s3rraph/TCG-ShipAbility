@@ -4,3 +4,4 @@ Pillow
 PyPDF2
 python-dotenv
 Requests
+keyring
