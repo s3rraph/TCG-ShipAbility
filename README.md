@@ -35,8 +35,7 @@ It streamlines your fulfillment flow from **CSV → label → PDF**, complete wi
    ```bash
    python Shipping.py
    ```
-   *(The app window will open automatically.)*
-
+   
 ---
 
 ## ⚙️ Configuration
