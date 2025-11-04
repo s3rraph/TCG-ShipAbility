@@ -538,7 +538,7 @@ class CSVConverterApp:
                 if seller_label_col in df.columns:
                     try:
                         df["seller_label_number"] = df[seller_label_col].astype(float)
-                        df = df.sort_values(by="seller_label_number", ascending=True)
+                        df = df.sort_values(by="seller_label_number", ascending=False)
                     except Exception:
                         df = df.sort_values(by=seller_label_col, ascending=True)
 
