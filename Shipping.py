@@ -12,14 +12,15 @@ import keyring
 KEYRING_SERVICE = "TCG ShipAbility"
 KEYRING_ACCOUNT = "easypost"
 CONFIG_FILENAME = "config.json"
-OLD_CONFIG_FILENAME = "shipping_config.json" 
+OLD_CONFIG_FILENAME = "shipping_config.json"
 
 DEFAULT_CONFIG = {
     "defaults": {
         "carrier": "USPS",
         "service": "First",
         "label_format": "PNG",
-        "country": "US"
+        "country": "US",
+        "sort_mode": "Platform"
     },
     "from_address": {
         "name": "",
@@ -36,17 +37,16 @@ DEFAULT_CONFIG = {
     # Rules apply to LETTERS ONLY (packages skip rules)
     # Each rule: rows with item_count <= max_items get these fields set.
     "rules": [
-        {"max_items": 7,    "weight_oz": 1, "machinable": True,  "predefined_package": "Letter"},
-        {"max_items": 14,    "weight_oz": 2, "machinable": True,  "predefined_package": "Letter"},
-        {"max_items": 36,    "weight_oz": 3.5, "machinable": False,  "predefined_package": "Letter"},
-        {"max_items": 80,    "weight_oz": 6, "machinable": True,  "predefined_package": "Flat"},
-        {"max_items": 9999, "weight_oz": 1, "machinable": True,  "predefined_package": "Package"}
+        {"max_items": 7,    "weight_oz": 1,   "machinable": True,  "predefined_package": "Letter"},
+        {"max_items": 14,   "weight_oz": 2,   "machinable": True,  "predefined_package": "Letter"},
+        {"max_items": 36,   "weight_oz": 3.5, "machinable": False, "predefined_package": "Letter"},
+        {"max_items": 80,   "weight_oz": 6,   "machinable": True,  "predefined_package": "Flat"},
+        {"max_items": 9999, "weight_oz": 1,   "machinable": True,  "predefined_package": "Package"}
     ],
     # Package detection
     "detection": {
         "manapool_shipping_equals_package": [0, 4.99, 9.99]
     }
-    
 }
 
 def get_saved_api_key():
@@ -113,6 +113,11 @@ def load_config():
             cfg["rules"] = sorted(rules, key=lambda r: int(r.get("max_items", 0)))
         except Exception:
             pass
+
+    if "defaults" not in cfg or not isinstance(cfg["defaults"], dict):
+        cfg["defaults"] = {}
+    cfg["defaults"].setdefault("sort_mode", "Platform")
+
     return cfg
 
 def save_config(cfg):
@@ -193,6 +198,19 @@ class CSVConverterApp:
         tk.Radiobutton(top, text="TCGPlayer", variable=self.format_var, value="TCGPlayer").grid(row=1, column=1, sticky="w", padx=(10,0))
         tk.Radiobutton(top, text="Manapool",  variable=self.format_var, value="Manapool").grid(row=1, column=2, sticky="w", padx=(10,0))
 
+
+        tk.Label(top, text="Sort:").grid(row=0, column=3, sticky="e", padx=(20, 4))
+        self.sort_var = tk.StringVar(value=self.config.get("defaults", {}).get("sort_mode", "Platform"))
+        self.sort_combo = ttk.Combobox(
+            top,
+            textvariable=self.sort_var,
+            values=["Platform", "A-Z", "Z-A"],
+            state="readonly",
+            width=12
+        )
+        self.sort_combo.grid(row=0, column=4, sticky="w")
+        self.sort_combo.bind("<<ComboboxSelected>>", self._on_sort_mode_changed)
+
         btns = tk.Frame(self.convert_frame)
         btns.pack(fill="x", padx=10)
         self.load_button = tk.Button(btns, text="Load Shipping Export CSV", command=self.load_csv)
@@ -205,7 +223,6 @@ class CSVConverterApp:
         self.buy_button.pack(side="left", padx=(8, 0))
 
         
-        # Preview container + status
         self.preview_container = tk.Frame(self.convert_frame)
         self.preview_container.pack(fill="both", expand=True, padx=10, pady=10)
         self.preview_container.grid_rowconfigure(0, weight=1)
@@ -283,16 +300,14 @@ class CSVConverterApp:
         ttk.Button(btns, text="Edit Selected", command=self._edit_selected_rule_dialog).pack(side="left", padx=(0,6))
         ttk.Button(btns, text="Delete Selected", command=self._delete_selected_rule).pack(side="left", padx=(0,6))
         ttk.Button(btns, text="Move Up", command=lambda: self._move_rule(-1)).pack(side="left", padx=(0,6))
-        ttk.Button(btns, text="Move Down", command=lambda: self._move_rule(1)).pack(side="left", padx=(0,6))        
-        
+        ttk.Button(btns, text="Move Down", command=lambda: self._move_rule(1)).pack(side="left", padx=(0,6))
+
         lf_key = ttk.LabelFrame(outer, text="EasyPost")
         lf_key.grid(row=3, column=0, columnspan=2, sticky="w", pady=(0,10), padx=(0,0))
 
         ttk.Button(lf_key, text="Set API Key…", command=self._set_api_key_dialog).grid(row=0, column=0, padx=6, pady=6)
 
-
         watch_vars = list(self.from_vars.values())
-        
         for v in watch_vars:
             v.trace_add("write", self._autosave_settings)
 
@@ -314,19 +329,18 @@ class CSVConverterApp:
                     val = int(val)
                 out.append(val)
             except Exception:
-                # ignore invalid fragments
                 pass
         return out or []
 
-    def _update_config_from_vars(self):        
-        self.config["from_address"] = {k: v.get().strip() for k, v in self.from_vars.items()}        
+    def _update_config_from_vars(self):
+        self.config["from_address"] = {k: v.get().strip() for k, v in self.from_vars.items()}
 
     def _autosave_settings(self, *args):
         if getattr(self, "_loading_settings", False):
             return
         self._update_config_from_vars()
         save_config(self.config)
-        
+
     def _set_api_key_dialog(self):
         dlg = tk.Toplevel(self.root)
         dlg.title("Set EasyPost API Key")
@@ -364,7 +378,6 @@ class CSVConverterApp:
         ttk.Button(dlg, text="OK", command=on_ok).grid(row=2, column=0, padx=6, pady=10)
         ttk.Button(dlg, text="Cancel", command=dlg.destroy).grid(row=2, column=1, padx=6, pady=10, sticky="e")
         e.focus_set()
-
 
     # ---------- Rules table ops (auto-save on changes) ----------
     def _refresh_rules_table(self):
@@ -517,13 +530,12 @@ class CSVConverterApp:
                     "to_address.country": df.get(norm_map.get("country","Country"), pd.Series([""]*len(df))).fillna(dflts["country"]),
                 })
 
-                # ---- TCGplayer package detection: string compare on "Product Weight" ----
+
                 if "Product Weight" in df.columns:
                     is_package = df["Product Weight"].astype(str).str.strip().eq("0.00")
                 else:
                     is_package = pd.Series([False] * len(df), index=df.index)
 
-                # ✅ APPLY rules + package handling
                 self.apply_rules_and_package_logic(card_count, is_package)
 
             elif format_type == "Manapool":
@@ -532,8 +544,8 @@ class CSVConverterApp:
                 df["item_count"] = col("itemcount","item_count").astype(int)
                 df["shipping_zip"] = col("shippingzip","shipping_zip").astype(str)
                 card_count = df["item_count"]
-                
-                # Sort by seller_label_number if present
+
+
                 seller_label_col = norm_map.get("sellerlabelnumber", "seller_label_number")
                 if seller_label_col in df.columns:
                     try:
@@ -556,7 +568,7 @@ class CSVConverterApp:
                     "to_address.country": col("shippingcountry","shipping_country").fillna(dflts["country"]),
                 })
 
-                # Package detection by 'shipping' price (handles variants)
+
                 det = self.config.get("detection", {})
                 mp_pkg_triggers = det.get("manapool_shipping_equals_package", [0, 4.99, 9.99])
                 ship_col = None
@@ -594,11 +606,50 @@ class CSVConverterApp:
             # Apply per-row service: GroundAdvantage for packages; default for letters
             self._apply_service_per_row()
 
+            # Apply user-selected sort mode (overrides platform order if A-Z/Z-A)
+            self._apply_sort_mode_to_dataframe()
+
             self.display_preview()
             self._update_save_state()
 
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load CSV: {e}")
+
+    
+    def _on_sort_mode_changed(self, event=None):
+        mode = self.sort_var.get().strip() or "Platform"
+        self.config.setdefault("defaults", {})["sort_mode"] = mode
+        save_config(self.config)
+
+        if self.data is not None and len(self.data) > 0:
+            self._apply_sort_mode_to_dataframe()
+            self.display_preview()
+
+    def _apply_sort_mode_to_dataframe(self):
+        """
+        Sort self.data according to sort mode:
+          - Platform: keep existing order (Manapool seller_label_number logic already applied)
+          - A-Z     : by to_address.name ascending (case-insensitive)
+          - Z-A     : by to_address.name descending (case-insensitive)
+        Keep self._is_package_mask aligned with self.data index.
+        """
+        mode = (self.config.get("defaults", {}).get("sort_mode", "Platform") or "Platform").upper()
+        if self.data is None or "to_address.name" not in self.data.columns:
+            return
+
+        if mode in ("A-Z", "Z-A"):
+            ascending = (mode == "A-Z")
+            # build a stable, case-insensitive key
+            sort_key = self.data["to_address.name"].astype(str).str.lower()
+            # remember index order for aligning masks
+            new_order = sort_key.sort_values(ascending=ascending).index
+            self.data = self.data.loc[new_order]
+            # realign the package mask if present
+            if self._is_package_mask is not None:
+                self._is_package_mask = self._is_package_mask.loc[new_order]
+        else:
+            # Platform: do nothing (retain current order)
+            pass
 
     def apply_rules_and_package_logic(self, card_count_series: pd.Series, is_package_mask: pd.Series):
         """
@@ -750,10 +801,8 @@ class CSVConverterApp:
     # ----- Row completeness / highlighting helpers -----
     def _is_package_row(self, idx: int) -> bool:
         try:
-            # primary source of truth is the mask set by apply_rules_and_package_logic
             if self._is_package_mask is not None:
                 return bool(self._is_package_mask.loc[idx])
-            # fallback if mask missing
             return str(self.data.at[idx, "parcel.predefined_package"]) == ""
         except Exception:
             return False
@@ -804,7 +853,7 @@ class CSVConverterApp:
             self.save_button.config(state=tk.DISABLED)
         else:
             self.save_button.config(state=tk.NORMAL)
-        
+
         if missing > 0 or self.data is None or len(self.data) == 0:
             self.buy_button.config(state=tk.DISABLED)
         else:
@@ -906,7 +955,7 @@ class CSVConverterApp:
         dlg = tk.Toplevel(self.root)
         dlg.title("Edit Letter Options")
         dlg.transient(self.root); dlg.grab_set()
-        
+
         dlg.update_idletasks()
         w = dlg.winfo_width()
         h = dlg.winfo_height()
@@ -936,7 +985,6 @@ class CSVConverterApp:
             if not _pos(vWt.get()):
                 messagebox.showerror("Invalid Input", "Enter a positive number for Weight (oz).")
                 return
-            # Persist overrides directly into row: these are consumed by _mk_parcel/_mk_options at buy/export time
             self.data.at[idx, "parcel.weight"] = vWt.get().strip()
             self.data.at[idx, "options.machinable"] = "True" if vMach.get() else "False"
             self._refresh_preview_row(idx)
@@ -947,7 +995,6 @@ class CSVConverterApp:
         ttk.Button(dlg, text="OK", command=on_ok).grid(row=2, column=0, padx=6, pady=10)
         ttk.Button(dlg, text="Cancel", command=dlg.destroy).grid(row=2, column=1, padx=6, pady=10, sticky="e")
         eWt.focus_set()
-
 
     def _refresh_preview_row(self, idx: int):
         if not hasattr(self, "preview_cols"):
@@ -978,7 +1025,7 @@ class CSVConverterApp:
             self.data.to_csv(file_path, index=False)
             messagebox.showinfo("Success", f"Batch CSV saved to:\n{file_path}")
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to save CSV: {e}")            
+            messagebox.showerror("Error", f"Failed to save CSV: {e}")
 
     def _mk_address(self, row, prefix):
         addr = {
@@ -990,10 +1037,9 @@ class CSVConverterApp:
             "street2": str(row.get(prefix + "street2", "")).strip(),
             "city":    str(row.get(prefix + "city", "")).strip(),
             "state":   str(row.get(prefix + "state", "")).strip().upper(),
-            "zip":     str(row.get(prefix + "zip", "")).strip(),   # ALWAYS string
+            "zip":     str(row.get(prefix + "zip", "")).strip(),
             "country": (str(row.get(prefix + "country", "")).strip() or "US").upper(),
         }
-        # drop blank fields
         return {k: v for k, v in addr.items() if v not in ("", None)}
 
     def _f_or_none(self, v):
@@ -1009,12 +1055,10 @@ class CSVConverterApp:
         predef = str(row.get("parcel.predefined_package", "")).strip()
         wt     = self._f_or_none(row.get("parcel.weight", ""))
         if predef:
-            # LETTER: predefined_package + weight (oz). No dimensions.
             out = {"predefined_package": predef}
             if wt is not None:
                 out["weight"] = wt
             return out
-        # PACKAGE: L/W/H + weight, all numeric
         L = self._f_or_none(row.get("parcel.length", ""))
         W = self._f_or_none(row.get("parcel.width", ""))
         H = self._f_or_none(row.get("parcel.height", ""))
@@ -1041,20 +1085,14 @@ class CSVConverterApp:
         parcel    = self._mk_parcel(row)
         options   = self._mk_options(row)
 
-        # Remove empty dicts
         payload = {"to_address": to_addr, "from_address": from_addr, "parcel": parcel}
         if options:
             payload["options"] = options
         return payload
 
     def _explain_easypost_error(self, ex):
-        """
-        Print everything useful from an EasyPost error so we can see
-        which field(s) were invalid.
-        """
         try:
             print("EasyPost error class:", type(ex).__name__)
-            # common attributes across versions
             msg = getattr(ex, "message", None) or str(ex)
             code = getattr(ex, "code", None)
             http_status = getattr(ex, "http_status", None)
@@ -1066,31 +1104,26 @@ class CSVConverterApp:
             if code is not None: print("code:", code)
             if http_status is not None: print("http_status:", http_status)
             if errors:
-                print("errors:")
                 try:
                     import json as _json
                     print(_json.dumps(errors, indent=2))
-                except Exception:   
+                except Exception:
                     print(errors)
             if json_body:
-                print("json_body:")
                 try:
                     import json as _json
                     print(_json.dumps(json_body, indent=2))
                 except Exception:
                     print(json_body)
             if http_body and not json_body:
-                # sometimes only raw body is present
                 print("http_body:", http_body)
-        except Exception as _:
+        except Exception:
             pass
-        
-        
+
     def buy_labels_and_build_pdf(self):
         """
         Create & buy EasyPost labels for the current preview rows,
         then fetch/rotate/pad/merge into a single PDF.
-        SDK-compatible across singular/plural services + kwargs/positional.
         """
         if self.data is None or len(self.data) == 0:
             messagebox.showerror("No Data", "Load and prepare your orders first.")
@@ -1122,15 +1155,12 @@ class CSVConverterApp:
 
         client = EasyPostClient(key)
 
-        # ---- SDK compatibility helpers ----
         svc = getattr(client, "shipments", None) or getattr(client, "shipment", None)
         if svc is None:
             messagebox.showerror("EasyPost SDK", "Could not locate EasyPost shipment service on client.")
             return
 
         def _create(payload):
-            """Create a shipment following official EasyPost SDK signature."""
-            # EasyPost Python SDK expects named keyword args, not a dict wrapper.
             print("Calling EasyPost shipment.create(...) with keyword args:")
             print(json.dumps(payload, indent=2, default=str))
             return svc.create(
@@ -1139,20 +1169,16 @@ class CSVConverterApp:
                 parcel=payload["parcel"],
                 options=payload.get("options", None),
             )
-        
+
         def _buy(sid, rate_id):
-            """Buy a shipment across SDK variants."""
             try:
-                # current SDK: pass a rate object
                 return svc.buy(sid, rate={"id": rate_id})
             except TypeError:
                 pass
             try:
-                # kwargs style
                 return svc.buy(shipment_id=sid, rate={"id": rate_id})
             except TypeError:
                 pass
-            # very old style fallback: sometimes accepted a plain rate_id
             return svc.buy(sid, rate_id)
 
         # Determine processing order (mirror the preview table)
@@ -1190,17 +1216,14 @@ class CSVConverterApp:
                     print(str(row))
 
                 try:
-                    # Build EasyPost create payload from your columns
                     create_payload = self._row_to_shipment_create(row)
                     print("Create payload:")
                     print(json.dumps(create_payload, indent=2, default=str))
 
-                    # Create shipment (SDK-tolerant)
                     shp = _create(create_payload)
                     sid = shp.get("id") if isinstance(shp, dict) else getattr(shp, "id", None)
                     print(f"Shipment created: {sid}")
 
-                    # Rate selection
                     want_carrier = str(row.get("carrier", "")).strip()
                     want_service = str(row.get("service", "")).strip()
                     print(f"Desired rate: carrier={want_carrier or '(none)'} service={want_service or '(none)'}")
@@ -1229,7 +1252,6 @@ class CSVConverterApp:
                     if not chosen_rate_id:
                         raise RuntimeError("No rates available for shipment.")
 
-                    # Buy (SDK-tolerant)
                     print(f"Buying shipment {sid} with rate {chosen_rate_id}…")
                     shp_bought = _buy(sid, chosen_rate_id)
                     bought_sid = (shp_bought.get("id") if isinstance(shp_bought, dict)
@@ -1243,7 +1265,6 @@ class CSVConverterApp:
                 except Exception as ex_row:
                     err_msg = f"{type(ex_row).__name__}: {ex_row}"
                     print(f"[Row {idx}] ERROR: {err_msg}")
-                    # If it's an EasyPost InvalidRequestError (invalid parameters), dump details:
                     try:
                         from easypost.errors.api.invalid_request_error import InvalidRequestError
                         if isinstance(ex_row, InvalidRequestError):
@@ -1259,7 +1280,6 @@ class CSVConverterApp:
                 messagebox.showerror("Buy Failed", "No labels were purchased. Check console logs for details.")
                 return
 
-            # Compose final PDF using your existing builder (rotate/pad/cache → merge)
             def _status_cb(msg):
                 self.status_var.set(msg); print(msg); self.root.update_idletasks()
 
@@ -1267,7 +1287,7 @@ class CSVConverterApp:
             print(f"Shipment IDs to fetch: {bought_ids}")
             build_pdf_from_shipments_multipage(client, key, bought_ids, pdf_path, _status_cb)
             open_pdf(pdf_path)
-            
+
             if errors:
                 msg = f"Saved PDF to:\n{pdf_path}\n\nSome rows failed:\n"
                 for i, (ridx, emsg) in enumerate(errors[:10]):
@@ -1278,13 +1298,9 @@ class CSVConverterApp:
                 messagebox.showwarning("Completed with Errors", msg)
             else:
                 print("\nSuccess. PDF saved.")
-                
 
         finally:
-            # always restore cursor
             self.root.config(cursor="")
-
-            # always re-enable Load and Buy
             try:
                 if hasattr(self, "load_button"):
                     self.load_button.config(state=tk.NORMAL)
@@ -1292,21 +1308,14 @@ class CSVConverterApp:
                     self.buy_button.config(state=tk.NORMAL)
             except Exception:
                 pass
-
-            # let existing logic decide Save button state based on package completeness
             if hasattr(self, "_update_save_state"):
                 self._update_save_state()
             else:
-                # fallback: if no updater, at least turn Save back on
                 try:
                     if hasattr(self, "save_button"):
                         self.save_button.config(state=tk.NORMAL)
                 except Exception:
                     pass
-
-
-
-
 
 if __name__ == "__main__":
     root = tk.Tk()
