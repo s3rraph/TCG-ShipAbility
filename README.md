@@ -53,7 +53,7 @@ They can be edited in the **Settings** tab.
 |----------|--------------|
 | **From Address** | Your sender information (used for every label). |
 | **Rules** | Determines letter weight / machinability by item count. |
-| **EasyPost API Key** | Stored in the config; editable from Settings → “Set API Key …”. |
+| **EasyPost API Key** |Sditable from Settings → “Set API Key …”. |
 
 ---
 
