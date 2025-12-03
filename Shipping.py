@@ -1270,8 +1270,8 @@ class CSVConverterApp:
                     for r in rates:
                         if r.get("id") == chosen_rate_id:
                             used_rate = r
-                            break
-                    carrier_used = str(used_rate.get("carrier", want_carrier)).strip()
+                            break                                
+                    carrier_used = str(used_rate.get("carrier", want_carrier)).strip()                    
 
                     print(f"Buying shipment {sid} with rate {chosen_rate_id}…")
                     shp_bought = _buy(sid, chosen_rate_id)
@@ -1290,6 +1290,12 @@ class CSVConverterApp:
                         tracking_url = getattr(tracker, "public_url", "") if tracker is not None else ""
 
                     mp_order_id = str(row.get("manapool.order_id", "")).strip()
+                    
+                    if(want_service == "First"):
+                        carrier_used += " Letter"
+                    else:
+                        tracking_url = ""
+                    
                     if mp_order_id:
                         seller_label = row.get("manapool.seller_label_number", "")
                         customer_name = row.get("manapool.customer_name", "") or row.get("to_address.name", "")
